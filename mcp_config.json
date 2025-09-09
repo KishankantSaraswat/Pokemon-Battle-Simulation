@@ -1,0 +1,76 @@
+{
+  "name": "pokemon-battle-mcp",
+  "version": "1.0.0",
+  "description": "A Model Context Protocol server for Pokemon battle simulation",
+  "server": {
+    "host": "localhost",
+    "port": 8080,
+    "protocol": "http"
+  },
+  "capabilities": {
+    "resources": true,
+    "tools": true,
+    "prompts": true
+  },
+  "resources": [
+    {
+      "name": "pokemon_data",
+      "uri_template": "pokemon://data/{name}",
+      "description": "Get detailed Pokemon data including stats, types, abilities, and moves"
+    },
+    {
+      "name": "battle_preview",
+      "uri_template": "pokemon://battle/{pokemon1}/{pokemon2}",
+      "description": "Get battle matchup preview with type advantages analysis"
+    }
+  ],
+  "tools": [
+    {
+      "name": "simulate_battle",
+      "description": "Simulate a battle between two Pokemon and return detailed results",
+      "parameters": {
+        "pokemon1": {
+          "type": "object",
+          "required": ["name"],
+          "properties": {
+            "name": {"type": "string"},
+            "level": {"type": "integer", "default": 50, "min": 1, "max": 100}
+          }
+        },
+        "pokemon2": {
+          "type": "object", 
+          "required": ["name"],
+          "properties": {
+            "name": {"type": "string"},
+            "level": {"type": "integer", "default": 50, "min": 1, "max": 100}
+          }
+        }
+      }
+    },
+    {
+      "name": "get_pokemon",
+      "description": "Get detailed information about a specific Pokemon",
+      "parameters": {
+        "name": {"type": "string", "description": "Pokemon name"}
+      }
+    },
+    {
+      "name": "compare_pokemon",
+      "description": "Compare two Pokemon stats and matchup without battle simulation",
+      "parameters": {
+        "pokemon1": {"type": "string"},
+        "pokemon2": {"type": "string"}
+      }
+    }
+  ],
+  "prompts": {
+    "battle_narrator": {
+      "description": "System prompt for engaging Pokemon battle narration",
+      "role": "system"
+    },
+    "pokemon_expert": {
+      "description": "System prompt for Pokemon knowledge and analysis",
+      "role": "system"
+    }
+  }
+}

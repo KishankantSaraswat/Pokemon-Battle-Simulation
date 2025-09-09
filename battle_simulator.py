@@ -1,0 +1,460 @@
+import math
+import random
+from copy import deepcopy
+
+# Enhanced type chart with more types
+TYPE_CHART = {
+    "normal": {"rock":0.5, "ghost":0.0, "steel":0.5},
+    "fire": {"grass":2.0, "ice":2.0, "bug":2.0, "steel":2.0, "water":0.5, "fire":0.5, "rock":0.5, "dragon":0.5},
+    "water": {"fire":2.0, "ground":2.0, "rock":2.0, "water":0.5, "grass":0.5, "dragon":0.5},
+    "electric": {"water":2.0, "flying":2.0, "electric":0.5, "grass":0.5, "ground":0.0, "dragon":0.5},
+    "grass": {"water":2.0, "ground":2.0, "rock":2.0, "fire":0.5, "grass":0.5, "poison":0.5, "flying":0.5, "bug":0.5, "dragon":0.5, "steel":0.5},
+    "ice": {"grass":2.0, "ground":2.0, "flying":2.0, "dragon":2.0, "fire":0.5, "water":0.5, "ice":0.5, "steel":0.5},
+    "fighting": {"normal":2.0, "ice":2.0, "rock":2.0, "dark":2.0, "steel":2.0, "poison":0.5, "flying":0.5, "psychic":0.5, "bug":0.5, "fairy":0.5, "ghost":0.0},
+    "poison": {"grass":2.0, "fairy":2.0, "poison":0.5, "ground":0.5, "rock":0.5, "ghost":0.5, "steel":0.0},
+    "ground": {"fire":2.0, "electric":2.0, "poison":2.0, "rock":2.0, "steel":2.0, "grass":0.5, "bug":0.5, "flying":0.0},
+    "flying": {"electric":0.5, "ice":0.5, "rock":0.5, "grass":2.0, "fighting":2.0, "bug":2.0},
+    "psychic": {"fighting":2.0, "poison":2.0, "psychic":0.5, "steel":0.5, "dark":0.0},
+    "bug": {"grass":2.0, "psychic":2.0, "dark":2.0, "fire":0.5, "fighting":0.5, "poison":0.5, "flying":0.5, "ghost":0.5, "steel":0.5, "fairy":0.5},
+    "rock": {"fire":2.0, "ice":2.0, "flying":2.0, "bug":2.0, "fighting":0.5, "ground":0.5, "steel":0.5},
+    "ghost": {"psychic":2.0, "ghost":2.0, "dark":0.5, "normal":0.0},
+    "dragon": {"dragon":2.0, "steel":0.5, "fairy":0.0},
+    "dark": {"fighting":0.5, "ghost":2.0, "psychic":2.0, "dark":0.5, "fairy":0.5},
+    "steel": {"ice":2.0, "rock":2.0, "fairy":2.0, "fire":0.5, "water":0.5, "electric":0.5, "steel":0.5},
+    "fairy": {"fighting":2.0, "dragon":2.0, "dark":2.0, "fire":0.5, "poison":0.5, "steel":0.5}
+}
+
+# Sample moves database with power, type, and accuracy
+MOVE_DATABASE = {
+    # Normal moves
+    "tackle": {"power": 40, "type": "normal", "accuracy": 100, "category": "physical"},
+    "body_slam": {"power": 85, "type": "normal", "accuracy": 100, "category": "physical"},
+    "hyper_beam": {"power": 150, "type": "normal", "accuracy": 90, "category": "special"},
+    
+    # Fire moves
+    "ember": {"power": 40, "type": "fire", "accuracy": 100, "category": "special"},
+    "flamethrower": {"power": 90, "type": "fire", "accuracy": 100, "category": "special"},
+    "fire_blast": {"power": 110, "type": "fire", "accuracy": 85, "category": "special"},
+    
+    # Water moves
+    "water_gun": {"power": 40, "type": "water", "accuracy": 100, "category": "special"},
+    "surf": {"power": 90, "type": "water", "accuracy": 100, "category": "special"},
+    "hydro_pump": {"power": 110, "type": "water", "accuracy": 80, "category": "special"},
+    
+    # Electric moves
+    "thunder_shock": {"power": 40, "type": "electric", "accuracy": 100, "category": "special"},
+    "thunderbolt": {"power": 90, "type": "electric", "accuracy": 100, "category": "special"},
+    "thunder": {"power": 110, "type": "electric", "accuracy": 70, "category": "special"},
+    
+    # Grass moves
+    "vine_whip": {"power": 45, "type": "grass", "accuracy": 100, "category": "physical"},
+    "razor_leaf": {"power": 55, "type": "grass", "accuracy": 95, "category": "physical"},
+    "solar_beam": {"power": 120, "type": "grass", "accuracy": 100, "category": "special"},
+    
+    # Fighting moves
+    "karate_chop": {"power": 50, "type": "fighting", "accuracy": 100, "category": "physical"},
+    "brick_break": {"power": 75, "type": "fighting", "accuracy": 100, "category": "physical"},
+    "close_combat": {"power": 120, "type": "fighting", "accuracy": 100, "category": "physical"},
+    
+    # Psychic moves
+    "confusion": {"power": 50, "type": "psychic", "accuracy": 100, "category": "special"},
+    "psychic": {"power": 90, "type": "psychic", "accuracy": 100, "category": "special"},
+    "psybeam": {"power": 65, "type": "psychic", "accuracy": 100, "category": "special"},
+    
+    # Recovery/Status moves
+    "rest": {"power": 0, "type": "psychic", "accuracy": 100, "category": "status"},
+    "recover": {"power": 0, "type": "normal", "accuracy": 100, "category": "status"},
+    "roost": {"power": 0, "type": "flying", "accuracy": 100, "category": "status"},
+    
+    # Ice moves
+    "ice_beam": {"power": 90, "type": "ice", "accuracy": 100, "category": "special"},
+    "blizzard": {"power": 110, "type": "ice", "accuracy": 70, "category": "special"},
+    
+    # Rock moves  
+    "rock_slide": {"power": 75, "type": "rock", "accuracy": 90, "category": "physical"},
+    "stone_edge": {"power": 100, "type": "rock", "accuracy": 80, "category": "physical"},
+}
+
+def get_pokemon_moveset(pokemon_data):
+    """Get appropriate moves for a Pokemon based on their types and stats"""
+    pokemon_types = [t.lower() for t in pokemon_data.get('types', ['normal'])]
+    pokemon_name = pokemon_data.get('name', '').lower()
+    stats = pokemon_data.get('stats', {})
+    
+    available_moves = []
+    
+    # Special movesets for legendary and iconic Pokemon
+    special_movesets = {
+        'mewtwo': ['psychic', 'psybeam', 'confusion', 'hyper_beam'],
+        'mew': ['psychic', 'confusion', 'psybeam', 'body_slam'],
+        'pikachu': ['thunderbolt', 'thunder_shock', 'thunder', 'tackle'],
+        'charizard': ['flamethrower', 'fire_blast', 'ember', 'body_slam'],
+        'blastoise': ['surf', 'water_gun', 'hydro_pump', 'body_slam'],
+        'venusaur': ['solar_beam', 'razor_leaf', 'vine_whip', 'body_slam'],
+        'gengar': ['confusion', 'psybeam', 'tackle', 'body_slam'],
+        'alakazam': ['psychic', 'confusion', 'psybeam', 'tackle'],
+        'machamp': ['karate_chop', 'brick_break', 'close_combat', 'body_slam'],
+        'dragonite': ['body_slam', 'hyper_beam', 'tackle', 'flamethrower'],
+        'gyarados': ['surf', 'hydro_pump', 'body_slam', 'hyper_beam'],
+        'snorlax': ['body_slam', 'hyper_beam', 'tackle', 'surf'],
+        'lapras': ['surf', 'water_gun', 'hydro_pump', 'body_slam'],
+        'articuno': ['surf', 'water_gun', 'tackle', 'body_slam'],
+        'zapdos': ['thunderbolt', 'thunder', 'thunder_shock', 'body_slam'],
+        'moltres': ['flamethrower', 'fire_blast', 'ember', 'body_slam']
+    }
+    
+    # Use special moveset if Pokemon has one
+    if pokemon_name in special_movesets:
+        return special_movesets[pokemon_name]
+    
+    # For other Pokemon, build moveset based on types and stats
+    primary_type = pokemon_types[0] if pokemon_types else 'normal'
+    
+    # Add STAB moves (prioritize powerful ones)
+    type_move_priority = {
+        'psychic': ['psychic', 'confusion', 'psybeam'],
+        'electric': ['thunderbolt', 'thunder', 'thunder_shock'],
+        'fire': ['flamethrower', 'fire_blast', 'ember'],
+        'water': ['surf', 'hydro_pump', 'water_gun'],
+        'grass': ['solar_beam', 'razor_leaf', 'vine_whip'],
+        'fighting': ['close_combat', 'brick_break', 'karate_chop'],
+        'normal': ['hyper_beam', 'body_slam', 'tackle']
+    }
+    
+    # Add moves for primary type
+    if primary_type in type_move_priority:
+        available_moves.extend(type_move_priority[primary_type][:3])
+    
+    # Add moves for secondary type if exists
+    if len(pokemon_types) > 1:
+        secondary_type = pokemon_types[1]
+        if secondary_type in type_move_priority:
+            secondary_moves = [move for move in type_move_priority[secondary_type][:2] 
+                             if move not in available_moves]
+            available_moves.extend(secondary_moves)
+    
+    # Add coverage move based on stats
+    attack = stats.get('attack', 0)
+    special_attack = stats.get('special-attack', 0)
+    
+    if special_attack > attack and len(available_moves) < 4:
+        # Special attacker - add special moves
+        coverage_moves = ['psychic', 'flamethrower', 'surf', 'thunderbolt']
+    else:
+        # Physical attacker - add physical moves
+        coverage_moves = ['body_slam', 'brick_break', 'hyper_beam', 'tackle']
+    
+    for move in coverage_moves:
+        if move not in available_moves and len(available_moves) < 4:
+            available_moves.append(move)
+    
+    # Ensure we have exactly 4 moves
+    while len(available_moves) < 4:
+        available_moves.append('tackle')
+    
+    return available_moves[:4]
+
+def select_move(pokemon_data, opponent_types, available_moves):
+    """Intelligently select the best move based on type effectiveness and power"""
+    best_move = None
+    best_score = 0
+    
+    # Add some randomness but still prefer good moves
+    import random
+    
+    move_scores = []
+    
+    for move_name in available_moves:
+        if move_name not in MOVE_DATABASE:
+            continue
+            
+        move_data = MOVE_DATABASE[move_name]
+        power = move_data['power']
+        move_type = move_data['type']
+        
+        # Calculate type effectiveness
+        effectiveness = type_effectiveness(move_type, opponent_types)
+        
+        # STAB bonus (Same Type Attack Bonus)
+        pokemon_types = [t.lower() for t in pokemon_data.get('types', [])]
+        stab_bonus = 1.5 if move_type in pokemon_types else 1.0
+        
+        # Calculate base score
+        base_score = power * effectiveness * stab_bonus
+        
+        # Bonus for high power moves
+        if power >= 90:
+            base_score *= 1.2
+        elif power >= 70:
+            base_score *= 1.1
+        
+        # Bonus for STAB moves (encourage type-appropriate moves)
+        if stab_bonus > 1.0:
+            base_score *= 1.3
+        
+        # Bonus for super effective moves
+        if effectiveness > 1.0:
+            base_score *= 1.4
+        elif effectiveness < 1.0 and effectiveness > 0:
+            base_score *= 0.7  # Penalty for not very effective
+        elif effectiveness == 0:
+            base_score = 0  # No effect moves get 0 score
+        
+        move_scores.append((move_name, base_score))
+    
+    if not move_scores:
+        return 'tackle'
+    
+    # Sort by score (highest first)
+    move_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    # Add some randomness: 70% chance for best move, 30% for others
+    if random.random() < 0.7 or len(move_scores) == 1:
+        return move_scores[0][0]  # Best move
+    else:
+        # Choose from top 3 moves randomly
+        top_moves = move_scores[:min(3, len(move_scores))]
+        return random.choice(top_moves)[0]
+
+def type_effectiveness(move_type, defender_types):
+    """Calculate type effectiveness multiplier"""
+    mult = 1.0
+    for dt in defender_types:
+        mult *= TYPE_CHART.get(move_type, {}).get(dt.lower(), 1.0)
+    return mult
+
+def damage_formula(level, power, attack, defense, modifier):
+    """Calculate damage using Pokemon damage formula (adjusted for longer battles)"""
+    # Original Pokemon damage formula but with reduced damage
+    base = ((2*level)/5 + 2) * power * (attack / defense)
+    base = base / 50 + 2
+    
+    # Reduce damage by 60% to make battles much longer
+    base = base * 0.4
+    
+    final_damage = max(1, math.floor(base * modifier))
+    
+    # Cap maximum damage to prevent one-shots (lowered for longer battles)
+    max_damage_cap = 35  # No single move can do more than 35 damage
+    return min(final_damage, max_damage_cap)
+
+class BattleSimulator:
+    def __init__(self):
+        pass  # Remove seed for more realistic battles
+
+    def simulate(self, p1, p2, lv1=50, lv2=50):
+        """Enhanced battle simulation with detailed move information"""
+        # Initialize Pokemon states with movesets and boosted HP
+        # Double HP for much longer, strategic battles
+        hp1_boosted = int(p1["stats"]["hp"] * 2.0)
+        hp2_boosted = int(p2["stats"]["hp"] * 2.0)
+        
+        state1 = {
+            "pokemon": deepcopy(p1), 
+            "hp": hp1_boosted,
+            "max_hp": hp1_boosted,
+            "level": lv1, 
+            "status": None,
+            "moves": get_pokemon_moveset(p1)
+        }
+        state2 = {
+            "pokemon": deepcopy(p2), 
+            "hp": hp2_boosted,
+            "max_hp": hp2_boosted,
+            "level": lv2, 
+            "status": None,
+            "moves": get_pokemon_moveset(p2)
+        }
+        
+        turn = 0
+        log = []
+        max_turns = 100  # Increased for longer, more strategic battles
+        
+        while state1["hp"] > 0 and state2["hp"] > 0 and turn < max_turns:
+            turn += 1
+            
+            # Speed check with random factor for variety
+            sp1 = p1["stats"]["speed"] * (0.5 if state1["status"]=="paralysis" else 1.0)
+            sp2 = p2["stats"]["speed"] * (0.5 if state2["status"]=="paralysis" else 1.0)
+            
+            # Add some randomness to speed ties
+            if abs(sp1 - sp2) <= 5:  # Close speeds
+                first, second = (state1, state2) if random.random() < 0.5 else (state2, state1)
+            else:
+                first, second = (state1, state2) if sp1 > sp2 else (state2, state1)
+
+            # Each Pokemon's turn
+            for actor, target in ((first, second), (second, first)):
+                if actor["hp"] <= 0 or target["hp"] <= 0:
+                    break
+                    
+                # Status condition checks
+                if actor["status"] == "paralysis" and random.random() < 0.25:
+                    log.append({
+                        "turn": turn, 
+                        "actor": actor["pokemon"]["name"], 
+                        "action": "paralyzed",
+                        "move": "(paralyzed)",
+                        "damage": 0,
+                        "target_hp": target["hp"],
+                        "effectiveness": 1.0,
+                        "critical": False
+                    })
+                    continue
+                
+                # Select best move intelligently
+                selected_move = select_move(
+                    actor["pokemon"], 
+                    target["pokemon"]["types"], 
+                    actor["moves"]
+                )
+                
+                move_data = MOVE_DATABASE.get(selected_move, 
+                    {"power": 50, "type": "normal", "accuracy": 100, "category": "physical"})
+                
+                # Accuracy check
+                accuracy_roll = random.randint(1, 100)
+                if accuracy_roll > move_data["accuracy"]:
+                    log.append({
+                        "turn": turn,
+                        "actor": actor["pokemon"]["name"],
+                        "action": "missed",
+                        "move": selected_move.replace('_', ' ').title(),
+                        "damage": 0,
+                        "target_hp": target["hp"],
+                        "effectiveness": 1.0,
+                        "critical": False
+                    })
+                    continue
+                
+                # Handle healing/recovery moves
+                if move_data["category"] == "status" and selected_move in ["rest", "recover", "roost"]:
+                    # Heal 50% of max HP
+                    heal_amount = actor["max_hp"] // 2
+                    actor["hp"] = min(actor["max_hp"], actor["hp"] + heal_amount)
+                    
+                    log.append({
+                        "turn": turn,
+                        "actor": actor["pokemon"]["name"],
+                        "action": "heal",
+                        "move": selected_move.replace('_', ' ').title(),
+                        "damage": -heal_amount,  # Negative for healing
+                        "target_hp": actor["hp"],
+                        "effectiveness": 1.0,
+                        "critical": False
+                    })
+                    continue
+                
+                # Calculate damage
+                move_type = move_data["type"]
+                power = move_data["power"]
+                
+                # STAB (Same Type Attack Bonus)
+                stab = 1.5 if move_type in [t.lower() for t in actor["pokemon"]["types"]] else 1.0
+                
+                # Type effectiveness
+                effectiveness = type_effectiveness(move_type, target["pokemon"]["types"])
+                
+                # Critical hit (6.25% chance)
+                critical = random.random() < 0.0625
+                critical_multiplier = 2.0 if critical else 1.0
+                
+                # Status effect modifications
+                burn_mod = 0.5 if (actor["status"] == "burn" and move_data["category"] == "physical") else 1.0
+                
+                # Random factor (85-100% for variance)
+                random_factor = random.uniform(0.85, 1.0)
+                
+                # Total damage modifier
+                modifier = stab * effectiveness * critical_multiplier * burn_mod * random_factor
+                
+                # Select attack/defense stats based on move category
+                if move_data["category"] == "physical":
+                    attack_stat = actor["pokemon"]["stats"]["attack"]
+                    defense_stat = target["pokemon"]["stats"]["defense"]
+                else:  # special
+                    attack_stat = actor["pokemon"]["stats"]["special-attack"]
+                    defense_stat = target["pokemon"]["stats"]["special-defense"]
+                
+                # Calculate final damage
+                damage = damage_formula(actor["level"], power, attack_stat, defense_stat, modifier)
+                target["hp"] = max(0, target["hp"] - damage)
+                
+                # Log the move with detailed information
+                log.append({
+                    "turn": turn,
+                    "actor": actor["pokemon"]["name"],
+                    "move": selected_move.replace('_', ' ').title(),
+                    "move_type": move_type.title(),
+                    "power": power,
+                    "category": move_data["category"].title(),
+                    "damage": damage,
+                    "target_hp": target["hp"],
+                    "effectiveness": effectiveness,
+                    "critical": critical,
+                    "stab": stab > 1.0,
+                    "action": "attack"
+                })
+                
+                # Check if target fainted
+                if target["hp"] <= 0:
+                    break
+            
+            # Apply residual status damage
+            for state in [state1, state2]:
+                if state["hp"] > 0:
+                    residual_damage = 0
+                    if state["status"] == "poison":
+                        residual_damage = max(1, math.floor(state["pokemon"]["stats"]["hp"] * 0.0625))
+                        state["hp"] = max(0, state["hp"] - residual_damage)
+                        log.append({
+                            "turn": turn,
+                            "actor": state["pokemon"]["name"],
+                            "action": "poison_damage",
+                            "move": "(Poison)",
+                            "damage": residual_damage,
+                            "target_hp": state["hp"],
+                            "effectiveness": 1.0,
+                            "critical": False
+                        })
+                    elif state["status"] == "burn":
+                        residual_damage = max(1, math.floor(state["pokemon"]["stats"]["hp"] * 0.0625))
+                        state["hp"] = max(0, state["hp"] - residual_damage)
+                        log.append({
+                            "turn": turn,
+                            "actor": state["pokemon"]["name"],
+                            "action": "burn_damage",
+                            "move": "(Burn)",
+                            "damage": residual_damage,
+                            "target_hp": state["hp"],
+                            "effectiveness": 1.0,
+                            "critical": False
+                        })
+            
+            # Check for battle end
+            if state1["hp"] <= 0 or state2["hp"] <= 0:
+                break
+
+        # Determine winner
+        if state1["hp"] > 0 and state2["hp"] <= 0:
+            winner = state1["pokemon"]["name"]
+        elif state2["hp"] > 0 and state1["hp"] <= 0:
+            winner = state2["pokemon"]["name"]
+        else:
+            winner = "draw" if state1["hp"] == state2["hp"] else (
+                state1["pokemon"]["name"] if state1["hp"] > state2["hp"] else state2["pokemon"]["name"]
+            )
+
+        return {
+            "turns": turn, 
+            "winner": winner, 
+            "log": log,
+            "final_hp": {
+                state1["pokemon"]["name"]: state1["hp"],
+                state2["pokemon"]["name"]: state2["hp"]
+            },
+            "movesets": {
+                state1["pokemon"]["name"]: [move.replace('_', ' ').title() for move in state1["moves"]],
+                state2["pokemon"]["name"]: [move.replace('_', ' ').title() for move in state2["moves"]]
+            }
+        }
