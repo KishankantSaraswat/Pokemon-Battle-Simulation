@@ -2,8 +2,8 @@ import math
 import random
 from copy import deepcopy
 
-# Enhanced type chart with more types
-TYPE_CHART = {
+# type effectiveness chart - kinda messy but works
+type_chart = {
     "normal": {"rock":0.5, "ghost":0.0, "steel":0.5},
     "fire": {"grass":2.0, "ice":2.0, "bug":2.0, "steel":2.0, "water":0.5, "fire":0.5, "rock":0.5, "dragon":0.5},
     "water": {"fire":2.0, "ground":2.0, "rock":2.0, "water":0.5, "grass":0.5, "dragon":0.5},
@@ -24,22 +24,22 @@ TYPE_CHART = {
     "fairy": {"fighting":2.0, "dragon":2.0, "dark":2.0, "fire":0.5, "poison":0.5, "steel":0.5}
 }
 
-# Sample moves database with power, type, and accuracy
-MOVE_DATABASE = {
-    # Normal moves
+# moves and stuff - just added what I thought would work
+moves_db = {
+    # basic normal moves
     "tackle": {"power": 40, "type": "normal", "accuracy": 100, "category": "physical"},
     "body_slam": {"power": 85, "type": "normal", "accuracy": 100, "category": "physical"},
-    "hyper_beam": {"power": 150, "type": "normal", "accuracy": 90, "category": "special"},
+    "hyper_beam": {"power": 150, "type": "normal", "accuracy": 90, "category": "special"},  # op move
     
-    # Fire moves
+    # fire type stuff
     "ember": {"power": 40, "type": "fire", "accuracy": 100, "category": "special"},
-    "flamethrower": {"power": 90, "type": "fire", "accuracy": 100, "category": "special"},
+    "flamethrower": {"power": 90, "type": "fire", "accuracy": 100, "category": "special"},  # classic move
     "fire_blast": {"power": 110, "type": "fire", "accuracy": 85, "category": "special"},
     
-    # Water moves
+    # water attacks
     "water_gun": {"power": 40, "type": "water", "accuracy": 100, "category": "special"},
     "surf": {"power": 90, "type": "water", "accuracy": 100, "category": "special"},
-    "hydro_pump": {"power": 110, "type": "water", "accuracy": 80, "category": "special"},
+    "hydro_pump": {"power": 110, "type": "water", "accuracy": 80, "category": "special"},  # sometimes misses
     
     # Electric moves
     "thunder_shock": {"power": 40, "type": "electric", "accuracy": 100, "category": "special"},
@@ -75,21 +75,21 @@ MOVE_DATABASE = {
     "stone_edge": {"power": 100, "type": "rock", "accuracy": 80, "category": "physical"},
 }
 
-def get_pokemon_moveset(pokemon_data):
-    """Get appropriate moves for a Pokemon based on their types and stats"""
-    pokemon_types = [t.lower() for t in pokemon_data.get('types', ['normal'])]
-    pokemon_name = pokemon_data.get('name', '').lower()
-    stats = pokemon_data.get('stats', {})
+def get_moves(poke_data):
+    # get moves for a pokemon - tried to make it smart
+    types = [t.lower() for t in poke_data.get('types', ['normal'])]
+    name = poke_data.get('name', '').lower()
+    stats = poke_data.get('stats', {})
     
-    available_moves = []
+    moves = []  # will store the moves here
     
-    # Special movesets for legendary and iconic Pokemon
-    special_movesets = {
-        'mewtwo': ['psychic', 'psybeam', 'confusion', 'hyper_beam'],
-        'mew': ['psychic', 'confusion', 'psybeam', 'body_slam'],
-        'pikachu': ['thunderbolt', 'thunder_shock', 'thunder', 'tackle'],
+    # hardcoded moves for some popular pokemon
+    special_moves = {
+        'mewtwo': ['psychic', 'psybeam', 'confusion', 'hyper_beam'],  # legendary
+        'mew': ['psychic', 'confusion', 'psybeam', 'body_slam'], 
+        'pikachu': ['thunderbolt', 'thunder_shock', 'thunder', 'tackle'],  # mascot
         'charizard': ['flamethrower', 'fire_blast', 'ember', 'body_slam'],
-        'blastoise': ['surf', 'water_gun', 'hydro_pump', 'body_slam'],
+        'blastoise': ['surf', 'water_gun', 'hydro_pump', 'body_slam'],  # water starter
         'venusaur': ['solar_beam', 'razor_leaf', 'vine_whip', 'body_slam'],
         'gengar': ['confusion', 'psybeam', 'tackle', 'body_slam'],
         'alakazam': ['psychic', 'confusion', 'psybeam', 'tackle'],
@@ -103,12 +103,14 @@ def get_pokemon_moveset(pokemon_data):
         'moltres': ['flamethrower', 'fire_blast', 'ember', 'body_slam']
     }
     
-    # Use special moveset if Pokemon has one
-    if pokemon_name in special_movesets:
-        return special_movesets[pokemon_name]
+    # check if we have custom moves for this pokemon
+    if name in special_moves:
+        return special_moves[name]
     
-    # For other Pokemon, build moveset based on types and stats
-    primary_type = pokemon_types[0] if pokemon_types else 'normal'
+    # otherwise try to figure out moves from types
+    main_type = types[0] if types else 'normal'
+    
+    available_moves = []
     
     # Add STAB moves (prioritize powerful ones)
     type_move_priority = {
@@ -122,12 +124,12 @@ def get_pokemon_moveset(pokemon_data):
     }
     
     # Add moves for primary type
-    if primary_type in type_move_priority:
-        available_moves.extend(type_move_priority[primary_type][:3])
+    if main_type in type_move_priority:
+        available_moves.extend(type_move_priority[main_type][:3])
     
     # Add moves for secondary type if exists
-    if len(pokemon_types) > 1:
-        secondary_type = pokemon_types[1]
+    if len(types) > 1:
+        secondary_type = types[1]
         if secondary_type in type_move_priority:
             secondary_moves = [move for move in type_move_priority[secondary_type][:2] 
                              if move not in available_moves]
@@ -154,74 +156,52 @@ def get_pokemon_moveset(pokemon_data):
     
     return available_moves[:4]
 
-def select_move(pokemon_data, opponent_types, available_moves):
-    """Intelligently select the best move based on type effectiveness and power"""
-    best_move = None
-    best_score = 0
-    
-    # Add some randomness but still prefer good moves
+def pick_move(poke, opponent_types, moves):
+    # simple move selection - not perfect but works
     import random
     
-    move_scores = []
+    good_moves = []
     
-    for move_name in available_moves:
-        if move_name not in MOVE_DATABASE:
+    for move in moves:
+        if move not in moves_db:
             continue
             
-        move_data = MOVE_DATABASE[move_name]
-        power = move_data['power']
-        move_type = move_data['type']
+        move_info = moves_db[move]
+        power = move_info['power']
+        move_type = move_info['type']
         
-        # Calculate type effectiveness
-        effectiveness = type_effectiveness(move_type, opponent_types)
+        # check type effectiveness
+        effectiveness = get_effectiveness(move_type, opponent_types)
         
-        # STAB bonus (Same Type Attack Bonus)
-        pokemon_types = [t.lower() for t in pokemon_data.get('types', [])]
-        stab_bonus = 1.5 if move_type in pokemon_types else 1.0
+        # same type bonus
+        poke_types = [t.lower() for t in poke.get('types', [])]
+        same_type = move_type in poke_types
         
-        # Calculate base score
-        base_score = power * effectiveness * stab_bonus
+        # basic scoring
+        score = power * effectiveness
+        if same_type:
+            score *= 1.5  # stab
         
-        # Bonus for high power moves
-        if power >= 90:
-            base_score *= 1.2
-        elif power >= 70:
-            base_score *= 1.1
-        
-        # Bonus for STAB moves (encourage type-appropriate moves)
-        if stab_bonus > 1.0:
-            base_score *= 1.3
-        
-        # Bonus for super effective moves
-        if effectiveness > 1.0:
-            base_score *= 1.4
-        elif effectiveness < 1.0 and effectiveness > 0:
-            base_score *= 0.7  # Penalty for not very effective
-        elif effectiveness == 0:
-            base_score = 0  # No effect moves get 0 score
-        
-        move_scores.append((move_name, base_score))
+        good_moves.append((move, score))
     
-    if not move_scores:
-        return 'tackle'
+    if not good_moves:
+        return 'tackle'  # fallback
     
-    # Sort by score (highest first)
-    move_scores.sort(key=lambda x: x[1], reverse=True)
+    # sort and pick - usually best move but sometimes random
+    good_moves.sort(key=lambda x: x[1], reverse=True)
     
-    # Add some randomness: 70% chance for best move, 30% for others
-    if random.random() < 0.7 or len(move_scores) == 1:
-        return move_scores[0][0]  # Best move
+    if random.random() < 0.8:
+        return good_moves[0][0]  # best move
     else:
-        # Choose from top 3 moves randomly
-        top_moves = move_scores[:min(3, len(move_scores))]
-        return random.choice(top_moves)[0]
+        return random.choice(good_moves)[0]  # random move
 
-def type_effectiveness(move_type, defender_types):
-    """Calculate type effectiveness multiplier"""
-    mult = 1.0
-    for dt in defender_types:
-        mult *= TYPE_CHART.get(move_type, {}).get(dt.lower(), 1.0)
-    return mult
+def get_effectiveness(attack_type, def_types):
+    # check how effective a move is
+    multiplier = 1.0
+    for def_type in def_types:
+        if attack_type in type_chart:
+            multiplier *= type_chart[attack_type].get(def_type.lower(), 1.0)
+    return multiplier
 
 def damage_formula(level, power, attack, defense, modifier):
     """Calculate damage using Pokemon damage formula (adjusted for longer battles)"""
@@ -255,7 +235,7 @@ class BattleSimulator:
             "max_hp": hp1_boosted,
             "level": lv1, 
             "status": None,
-            "moves": get_pokemon_moveset(p1)
+            "moves": get_moves(p1)
         }
         state2 = {
             "pokemon": deepcopy(p2), 
@@ -263,7 +243,7 @@ class BattleSimulator:
             "max_hp": hp2_boosted,
             "level": lv2, 
             "status": None,
-            "moves": get_pokemon_moveset(p2)
+            "moves": get_moves(p2)
         }
         
         turn = 0
@@ -302,14 +282,14 @@ class BattleSimulator:
                     })
                     continue
                 
-                # Select best move intelligently
-                selected_move = select_move(
+                # pick a move
+                selected_move = pick_move(
                     actor["pokemon"], 
                     target["pokemon"]["types"], 
                     actor["moves"]
                 )
                 
-                move_data = MOVE_DATABASE.get(selected_move, 
+                move_data = moves_db.get(selected_move,
                     {"power": 50, "type": "normal", "accuracy": 100, "category": "physical"})
                 
                 # Accuracy check
@@ -353,7 +333,7 @@ class BattleSimulator:
                 stab = 1.5 if move_type in [t.lower() for t in actor["pokemon"]["types"]] else 1.0
                 
                 # Type effectiveness
-                effectiveness = type_effectiveness(move_type, target["pokemon"]["types"])
+                effectiveness = get_effectiveness(move_type, target["pokemon"]["types"])
                 
                 # Critical hit (6.25% chance)
                 critical = random.random() < 0.0625

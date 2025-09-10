@@ -6,30 +6,34 @@ import re
 import random
 from PIL import Image
 from io import BytesIO
+
+# voice stuff - might not work on all systems
 try:
     import speech_recognition as sr
     import pydub
     import pyttsx3
-    VOICE_AVAILABLE = True
+    voice_works = True
 except ImportError:
-    VOICE_AVAILABLE = False
-    st.warning("Voice features not available. Install: pip install SpeechRecognition pydub pyttsx3 pyaudio")
+    voice_works = False
+    st.warning("Voice not available - install speech libs if you want it")
+
+VOICE_AVAILABLE = voice_works
 
 st.set_page_config(
-    page_title="🎤 Voice-Enabled Pokémon Battle Simulator",
+    page_title="Pokemon Battle Thing",
     page_icon="⚔️",
-    layout="wide",
+    layout="wide", 
     initial_sidebar_state="expanded"
 )
 
-# Configuration
-MCP_SERVER_URL = "http://localhost:8080"
-BACKEND_URL = "http://127.0.0.1:5000"
-HEADERS = {"Content-Type": "application/json"}
+# server config
+server_url = "http://localhost:8080"
+backend_url = "http://127.0.0.1:5000"  # backup
+json_headers = {"Content-Type": "application/json"}
 
-# Comprehensive Pokemon database for search and voice recognition
-POKEMON_NAMES = [
-    # Generation 1 (Kanto)
+# pokemon names - got this list online somewhere
+pokemon_list = [
+    # gen 1 stuff
     "bulbasaur", "ivysaur", "venusaur", "charmander", "charmeleon", "charizard",
     "squirtle", "wartortle", "blastoise", "caterpie", "metapod", "butterfree",
     "weedle", "kakuna", "beedrill", "pidgey", "pidgeotto", "pidgeot",
@@ -85,61 +89,52 @@ POPULAR_POKEMON = [
 
 # Voice Recognition Functions
 def extract_pokemon_names(text):
-    """Extract Pokemon names from voice text"""
+    # find pokemon names in text
     text = text.lower()
-    found_pokemon = []
+    found = []
     
-    for pokemon in POKEMON_NAMES:
-        if pokemon.lower() in text:
-            found_pokemon.append(pokemon)
+    for name in pokemon_list:
+        if name.lower() in text:
+            found.append(name)
     
-    return found_pokemon
+    return found
 
-def listen_for_voice_command():
-    """Listen for voice command and extract Pokemon names"""
-    if not VOICE_AVAILABLE:
-        return None, "Voice recognition not available"
+def listen_for_voice():
+    # voice recognition - basic error handling
+    if not voice_works:
+        return None, "No voice support"
     
     try:
         r = sr.Recognizer()
         with sr.Microphone() as source:
-            st.info("🎤 Listening... Say something like 'Battle Pikachu against Charizard'")
+            st.info("🎤 Listening... say pokemon names")
             r.adjust_for_ambient_noise(source)
             audio = r.listen(source, timeout=5)
         
         text = r.recognize_google(audio)
         pokemon_names = extract_pokemon_names(text)
         return pokemon_names, text
-    except sr.UnknownValueError:
-        return None, "Could not understand audio"
-    except sr.RequestError:
-        return None, "Could not request results from speech service"
-    except Exception as e:
-        return None, f"Error: {str(e)}"
+    except:
+        # just catch everything - dont care about specific errors
+        return None, "Didnt work"
 
 # MCP Server Functions
-def call_mcp_tool(tool_name, arguments):
-    """Call MCP server tool"""
-    payload = {
-        "name": tool_name,
-        "arguments": arguments
-    }
+def call_server(tool, args):
+    # call the mcp server - simple version
+    data = {"name": tool, "arguments": args}
     
     try:
-        response = requests.post(
-            f"{MCP_SERVER_URL}/mcp/tools/call",
-            headers=HEADERS,
-            json=payload,
-            timeout=15
-        )
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        return {"error": str(e)}
+        resp = requests.post(f"{server_url}/mcp/tools/call", headers=json_headers, json=data, timeout=10)
+        return resp.json()
+    except:
+        return {"error": "server call failed"}
+
+def call_mcp_tool(tool_name, args):
+    return call_server(tool_name, args)
 
 def get_pokemon_data(name):
-    """Get Pokemon data from MCP server"""
-    response = call_mcp_tool("get_pokemon", {"name": name})
+    # get pokemon info from server
+    response = call_server("get_pokemon", {"name": name})
     
     if "content" in response:
         try:
@@ -147,13 +142,13 @@ def get_pokemon_data(name):
         except:
             pass
     
-    # Fallback to backend if MCP fails
+        # try backup server
     try:
-        response = requests.get(f"{BACKEND_URL}/pokemon/{name.lower()}")
-        if response.status_code == 200:
-            return response.json()
+        resp = requests.get(f"{backend_url}/pokemon/{name.lower()}")
+        if resp.status_code == 200:
+            return resp.json()
     except:
-        pass
+        pass  # oh well
     
     return None
 
@@ -861,5 +856,5 @@ with st.sidebar.expander("🔧 Debug Info", expanded=False):
     })
     
     st.write("**Server URLs:**")
-    st.code(f"MCP Server: {MCP_SERVER_URL}")
-    st.code(f"Backend: {BACKEND_URL}")
+    st.code(f"MCP Server: {server_url}")
+    st.code(f"Backend: {backend_url}")

@@ -4,30 +4,31 @@ from pokemon_resource import PokemonResource
 from battle_simulator import BattleSimulator
 from datetime import datetime
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)  # cors for frontend
 
-poke_resource = PokemonResource()
-sim = BattleSimulator()
+# initialize the pokemon stuff
+pokemon_api = PokemonResource()
+battle_sim = BattleSimulator()
 
 # MCP Protocol Implementation
 
 @app.route("/mcp/info", methods=["GET"])
-def mcp_info():
-    """MCP Server Information"""
+def get_server_info():
+    # basic server info for mcp
     return jsonify({
         "name": "Pokemon Battle MCP Server",
-        "version": "1.0.0",
-        "description": "A Model Context Protocol server for Pokemon battle simulation",
-        "author": "Pokemon Battle Simulator",
+        "version": "1.0.0", 
+        "description": "Pokemon battle simulation with MCP",
+        "author": "me",
         "license": "MIT",
         "homepage": "http://localhost:8080",
         "protocol_version": "2024-11-05",
         "capabilities": {
             "resources": True,
-            "tools": True,
+            "tools": True, 
             "prompts": True
         }
     })
@@ -54,13 +55,14 @@ def list_resources():
 
 @app.route("/mcp/resources/read", methods=["POST"])
 def read_resource():
-    """Read a specific resource"""
+    # read pokemon data
     data = request.get_json()
     uri = data.get("uri", "")
+    print(f"Reading resource: {uri}")  # debug
     
     if uri.startswith("pokemon://data/"):
         pokemon_name = uri.replace("pokemon://data/", "")
-        pokemon_data = poke_resource.get_pokemon(pokemon_name)
+        pokemon_data = pokemon_api.get_pokemon(pokemon_name)
         if not pokemon_data:
             return jsonify({"error": f"Pokemon '{pokemon_name}' not found"}), 404
         
@@ -80,8 +82,8 @@ def read_resource():
             return jsonify({"error": "Invalid battle URI format"}), 400
         
         pokemon1, pokemon2 = parts
-        p1_data = poke_resource.get_pokemon(pokemon1)
-        p2_data = poke_resource.get_pokemon(pokemon2)
+        p1_data = pokemon_api.get_pokemon(pokemon1)
+        p2_data = pokemon_api.get_pokemon(pokemon2)
         
         if not p1_data or not p2_data:
             return jsonify({"error": "One or both Pokemon not found"}), 404
@@ -177,14 +179,14 @@ def call_tool():
             return jsonify({"error": "Both pokemon1 and pokemon2 are required"}), 400
         
         # Fetch full pokemon data
-        full1 = poke_resource.get_pokemon(p1["name"])
-        full2 = poke_resource.get_pokemon(p2["name"])
+        full1 = pokemon_api.get_pokemon(p1["name"])
+        full2 = pokemon_api.get_pokemon(p2["name"])
         
         if not full1 or not full2:
             return jsonify({"error": "One or both Pokemon not found"}), 404
         
         # Simulate battle
-        battle_result = sim.simulate(full1, full2, p1.get("level", 50), p2.get("level", 50))
+        battle_result = battle_sim.simulate(full1, full2, p1.get("level", 50), p2.get("level", 50))
         
         # Enhanced battle result with summary
         enhanced_result = {
@@ -211,7 +213,7 @@ def call_tool():
         if not pokemon_name:
             return jsonify({"error": "Pokemon name is required"}), 400
         
-        pokemon_data = poke_resource.get_pokemon(pokemon_name)
+        pokemon_data = pokemon_api.get_pokemon(pokemon_name)
         if not pokemon_data:
             return jsonify({"error": f"Pokemon '{pokemon_name}' not found"}), 404
         
@@ -231,8 +233,8 @@ def call_tool():
         if not pokemon1 or not pokemon2:
             return jsonify({"error": "Both pokemon1 and pokemon2 names are required"}), 400
         
-        p1_data = poke_resource.get_pokemon(pokemon1)
-        p2_data = poke_resource.get_pokemon(pokemon2)
+        p1_data = pokemon_api.get_pokemon(pokemon1)
+        p2_data = pokemon_api.get_pokemon(pokemon2)
         
         if not p1_data or not p2_data:
             return jsonify({"error": "One or both Pokemon not found"}), 404
@@ -342,7 +344,7 @@ Provide accurate, detailed information about Pokemon including their stats, type
 @app.route("/resources/pokemon/<name>", methods=["GET"])
 def get_pokemon_legacy(name):
     """Legacy endpoint for Pokemon data"""
-    data = poke_resource.get_pokemon(name)
+    data = pokemon_api.get_pokemon(name)
     if not data:
         return jsonify({"error": "not found"}), 404
     return jsonify(data)
@@ -357,13 +359,13 @@ def simulate_battle_legacy():
     if not p1 or not p2:
         return jsonify({"error": "pokemon1 and pokemon2 required"}), 400
 
-    full1 = poke_resource.get_pokemon(p1["name"])
-    full2 = poke_resource.get_pokemon(p2["name"])
+    full1 = pokemon_api.get_pokemon(p1["name"])
+    full2 = pokemon_api.get_pokemon(p2["name"])
     
     if not full1 or not full2:
         return jsonify({"error": "one or both pokemon not found"}), 404
 
-    log = sim.simulate(full1, full2, p1.get("level", 50), p2.get("level", 50))
+    log = battle_sim.simulate(full1, full2, p1.get("level", 50), p2.get("level", 50))
     return jsonify(log)
 
 # Helper functions
