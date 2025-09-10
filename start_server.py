@@ -25,10 +25,10 @@ def check_requirements():
             missing_packages.append(package)
     
     if missing_packages:
-        print("❌ Missing required packages:")
+        print("Missing required packages:")
         for package in missing_packages:
             print(f"   - {package}")
-        print("\n💡 Install missing packages with:")
+        print("\nInstall missing packages with:")
         print(f"   pip install {' '.join(missing_packages)}")
         return False
     
@@ -50,7 +50,7 @@ def check_files():
             missing_files.append(file)
     
     if missing_files:
-        print("❌ Missing required files:")
+        print("Missing required files:")
         for file in missing_files:
             print(f"   - {file}")
         return False
@@ -59,33 +59,33 @@ def check_files():
 
 def main():
     """Main startup function"""
-    print("🚀 Pokemon Battle MCP Server Startup")
+    print("Pokemon Battle MCP Server Startup")
     print("="*50)
     
     # Check Python version
     if sys.version_info < (3, 8):
-        print("❌ Python 3.8+ required")
+        print("Python 3.8+ required")
         print(f"   Current version: {sys.version}")
         return 1
     
-    print(f"✅ Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    print(f"Python version: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
     
     # Check required files
-    print("📁 Checking required files...")
+    print("Checking required files...")
     if not check_files():
         return 1
-    print("✅ All required files present")
+    print("All required files present")
     
     # Check requirements
-    print("📦 Checking dependencies...")
+    print("Checking dependencies...")
     if not check_requirements():
-        print("\n🔧 To install requirements:")
+        print("\nTo install requirements:")
         print("   pip install -r requirements.txt")
         return 1
-    print("✅ All dependencies satisfied")
+    print("All dependencies satisfied")
     
     # Start server
-    print("\n🌟 Starting MCP Server...")
+    print("\nStarting MCP Server...")
     print("   Server URL: http://localhost:8080")
     print("   MCP Info: http://localhost:8080/mcp/info")
     print("   Press Ctrl+C to stop")
@@ -99,15 +99,15 @@ def main():
         subprocess.run([sys.executable, "server.py"], check=True)
         
     except KeyboardInterrupt:
-        print("\n\n👋 Server stopped by user")
+        print("\n\nServer stopped by user")
         return 0
     
     except subprocess.CalledProcessError as e:
-        print(f"\n❌ Server failed to start: {e}")
+        print(f"\nServer failed to start: {e}")
         return 1
     
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
+        print(f"\nUnexpected error: {e}")
         return 1
 
 if __name__ == "__main__":
